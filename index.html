@@ -574,7 +574,7 @@ async function generate() {
   try {
     for (let i = 0; i < total; i++) {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
         {
           method:'POST',
           headers:{'Content-Type':'application/json'},
@@ -597,7 +597,19 @@ async function generate() {
     }
     container.innerHTML = html;
   } catch(err) {
-    container.innerHTML = `<div class="error-block"><strong>Generation failed.</strong><br/>${err.message}<br/><br/>Check your API key and connection, then try again.</div>`;
+    const isCORS = err.message === 'Failed to fetch' || err.message.includes('NetworkError') || err.message.includes('CORS');
+    const msg = isCORS
+      ? `<strong>CORS block detected — browser security is preventing the API call.</strong><br/><br/>
+         This happens when the file is opened locally (file://) rather than from a live URL.<br/><br/>
+         <strong>Fix — fastest option:</strong><br/>
+         Rename this file to <code>index.html</code>, create a new Vercel project, and deploy it.
+         Once it's live at a real <code>https://</code> URL, the Gemini API call works perfectly.<br/><br/>
+         Your API key is fine. This is a browser restriction, not a tool error.`
+      : `<strong>Generation failed.</strong><br/>${err.message}<br/><br/>
+         ${err.message.includes('API_KEY') || err.message.includes('403')
+           ? 'API key may be invalid — check it at <strong>aistudio.google.com</strong>.'
+           : 'Check your API key and internet connection, then try again.'}`;
+    container.innerHTML = `<div class="error-block">${msg}</div>`;
     allGeneratedText = '';
   }
 
