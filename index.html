@@ -393,83 +393,37 @@ function toggleKey() {
 // PROMPT
 // ════════════════════════════════════════
 function buildPrompt(copy) {
-  return `## CRITICAL FORMATTING RULE
-Do NOT use any markdown formatting. No bold (**text**), no italics (*text*), no headers (###). Plain text only. The output will be read by a machine parser and markdown will break it.
-
----
-
-## YOUR ROLE
-You are a senior international radio broadcast journalist working for Royal FM 95.1, Ilorin, Nigeria.
-Your only job is to turn raw news copy into international standard FM radio output.
-You do not ask questions. You do not explain your process. You do not add commentary.
-You receive raw copy. You produce the output. That is all.
-
-${WINDOWS[selectedWindow].tone}
-
----
-
-## WRITING GOAL
-- Write for the ear, not for print.
-- Use ultra simple, clean, direct English at all times.
-- Sound professional, calm, and broadcast-ready.
-- Do not sound dramatic, academic, or overloaded.
-- Make it story-like and easy on the ear and mouth.
-
----
-
-## HEADLINE RULES
-- Write exactly 3 headline options. No more, no less.
-- Each headline: short, clean, direct.
-- Pattern: [Name/Subject] + [verb] + [what happened].
-- Use real names of people, places, organisations, institutions.
-- Maximum 12 words per headline. Hard limit.
-- No clickbait. No questions. No vague teasers. No "Breaking".
-
----
-
-## SCRIPT RULES
-- Always write exactly 4 short paragraphs. Never 3. Never 5. Always 4.
-- Each paragraph: 1 short, lean but detailed sentence.
-- Never let any paragraph feel crowded.
-- No fluff. No unnecessary background. No complicated vocabulary.
-- Use transition words where helpful: However / Meanwhile / Furthermore / Notably / Also
-- Final paragraph MUST close the story clearly with an ending tone.
-- Keep names, numbers, locations, dates, and consequences.
-- For disputed, political, security, legal, or controversial stories — use: says / claims / alleges / warns / insists / according to.
-- Do not invent facts. Do not add opinions.
-
----
-
-## PARAGRAPH STRUCTURE
-1. Paragraph 1 — Introduce the main development immediately.
-2. Paragraph 2 — Add the key detail, number, reaction, or context.
-3. Paragraph 3 — Move forward with implication, response, or clarification.
-4. Paragraph 4 — End with outcome, next step, warning, reassurance, or closing significance.
-
----
-
-## OUTPUT FORMAT — USE THIS EXACT LAYOUT
+  const tone = WINDOWS[selectedWindow].tone;
+  return `Follow this EXACT format. Plain text only. No markdown. No bold. No asterisks.
 
 HEADLINES
-• [headline 1]
-• [headline 2]
-• [headline 3]
+• headline one here maximum twelve words
+• headline two here maximum twelve words
+• headline three here maximum twelve words
 
 NEWS SCRIPT
-[paragraph 1]
+First paragraph sentence here.
 
-[paragraph 2]
+Second paragraph sentence here.
 
-[paragraph 3]
+Third paragraph sentence here.
 
-[paragraph 4]
+Fourth paragraph sentence here.
 
 ---
+INSTRUCTIONS:
+- Output ONLY the above format. Nothing before HEADLINES. Nothing after the fourth paragraph.
+- Exactly 3 bullet headlines. Exactly 4 paragraphs. Hard rules — never break them.
+- Each paragraph = exactly ONE sentence. Short. Clear. Radio-ready.
+- No markdown formatting of any kind.
+- Headlines: [Subject] + [verb] + [what happened]. Max 12 words. No questions. No clickbait.
+- Paragraphs flow: (1) main development (2) key detail or number (3) response or context with transition word However/Meanwhile/Furthermore (4) outcome or closing significance.
+- Simple English. Write for the ear not the eye.
+- Attribution for political/security/legal stories: says / claims / warns / according to.
+- Broadcast window context: ${tone}
 
-## RAW COPY:
-${copy}
-
-Produce the output now. Nothing else.`;
+RAW COPY:
+${copy}`;
 }
 
 // ════════════════════════════════════════
@@ -612,14 +566,20 @@ async function generate() {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
+            system_instruction: {
+              parts:[{ text: `You are a senior radio broadcast journalist. You ONLY output plain text in the EXACT format specified. No markdown. No bold. No asterisks. No extra commentary. Just the format.` }]
+            },
             contents:[{parts:[{text: buildPrompt(toProcess[i]||copy)}]}],
-            generationConfig:{temperature:0.2, maxOutputTokens:1000, topP:0.9}
+            generationConfig:{temperature:0.1, maxOutputTokens:1000, topP:0.9}
           })
         }
       );
       if (!res.ok) { const e=await res.json(); throw new Error(e.error?.message||`API error ${res.status}`); }
       const data = await res.json();
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      console.log('=== RAW GEMINI RESPONSE ===');
+      console.log(raw);
+      console.log('=== END RAW RESPONSE ===');
       if (!raw) throw new Error('Empty response from Gemini. Check your API key.');
       const parsed = parse(raw);
       html += renderBlock(parsed, i+1, total);
