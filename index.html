@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Royal FM Script Writer — Broadcast Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e0f;--surface:#141416;--surface2:#1c1c1f;--surface3:#242428;
+  --border:#2c2c30;--border2:#3a3a3f;
+  --text:#e8e4d9;--muted:#666660;--muted2:#444440;
+  --amber:#f5a623;--amber-dim:#c4841a;
+  --amber-glow:rgba(245,166,35,0.10);--amber-glow2:rgba(245,166,35,0.06);
+  --red:#e05252;--green:#52c27a;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;min-height:100vh;overflow-x:hidden;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);}
+
+/* HEADER */
+.rfm-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:16px;}
+.rfm-logo{display:flex;align-items:center;gap:14px;}
+.rfm-logo-badge{background:var(--amber);color:#0e0e0f;font-family:'Syne',sans-serif;font-weight:800;font-size:0.78rem;letter-spacing:0.05em;padding:5px 10px;border-radius:5px;white-space:nowrap;}
+.rfm-logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:0.95rem;color:var(--text);letter-spacing:-0.01em;}
+.rfm-logo-sub{font-size:0.55rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-top:1px;}
+.rfm-header-right{display:flex;align-items:center;gap:12px;}
+.on-air-indicator{display:flex;align-items:center;gap:6px;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);}
+.on-air-dot{width:6px;height:6px;border-radius:50%;background:var(--muted2);}
+.on-air-dot.live{background:var(--red);box-shadow:0 0 8px var(--red);animation:airlive 1.5s ease-in-out infinite;}
+@keyframes airlive{0%,100%{opacity:1}50%{opacity:0.4}}
+.rfm-time{font-size:0.72rem;color:var(--amber);letter-spacing:0.05em;font-weight:500;}
+
+/* LAYOUT */
+.rfm-main{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - 60px);position:relative;z-index:1;}
+
+/* LEFT PANEL */
+.input-panel{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.panel-header{padding:18px 22px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.panel-label{font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--amber);margin-bottom:2px;}
+.panel-title{font-family:'Syne',sans-serif;font-size:0.88rem;font-weight:700;color:var(--text);}
+.panel-body{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:16px;}
+.panel-body::-webkit-scrollbar{width:3px;}
+.panel-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+.window-label{font-size:0.58rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.window-pills{display:flex;gap:6px;}
+.window-pill{flex:1;padding:9px 8px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:0.05em;color:var(--muted);cursor:pointer;transition:all 0.15s;user-select:none;line-height:1.3;}
+.window-pill:hover{color:var(--text);border-color:var(--border2);}
+.window-pill.active{background:var(--amber-glow);border-color:var(--amber);color:var(--amber);}
+.window-pill .pill-time{display:block;font-size:0.58rem;opacity:0.7;margin-top:2px;}
+
+.count-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.count-label{font-size:0.58rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
+.count-pills{display:flex;gap:5px;}
+.count-pill{padding:5px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--muted);cursor:pointer;transition:all 0.15s;user-select:none;}
+.count-pill:hover{color:var(--text);}
+.count-pill.active{background:var(--amber-glow);border-color:var(--amber);color:var(--amber);}
+
+.copy-label{font-size:0.58rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.copy-clear{font-size:0.58rem;color:var(--muted2);cursor:pointer;letter-spacing:0;text-transform:none;transition:color 0.15s;background:none;border:none;font-family:'IBM Plex Mono',monospace;}
+.copy-clear:hover{color:var(--red);}
+.raw-copy{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:0.78rem;line-height:1.7;padding:14px;outline:none;resize:none;min-height:220px;transition:border-color 0.18s,box-shadow 0.18s;}
+.raw-copy::placeholder{color:var(--muted2);font-style:italic;}
+.raw-copy:focus{border-color:var(--amber-dim);box-shadow:0 0 0 3px var(--amber-glow2);}
+.char-count{font-size:0.58rem;color:var(--muted2);text-align:right;margin-top:5px;}
+
+.sample-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.sample-label{font-size:0.58rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;flex-shrink:0;}
+.sample-btn{padding:4px 10px;background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:0.6rem;cursor:pointer;transition:all 0.15s;}
+.sample-btn:hover{border-color:var(--amber-dim);color:var(--amber);}
+
+.api-row{padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.api-label{font-size:0.58rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;flex-shrink:0;}
+.api-input{flex:1;min-width:140px;background:transparent;border:none;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:0.72rem;outline:none;}
+.api-input::placeholder{color:var(--muted2);}
+.api-toggle{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.7rem;transition:color 0.15s;flex-shrink:0;font-family:'IBM Plex Mono',monospace;}
+.api-toggle:hover{color:var(--amber);}
+
+.generate-btn{width:100%;padding:14px;background:var(--amber);border:none;border-radius:10px;color:#0e0e0f;font-family:'Syne',sans-serif;font-size:0.88rem;font-weight:800;letter-spacing:0.05em;cursor:pointer;transition:all 0.2s;}
+.generate-btn:hover{background:#f7b840;transform:translateY(-1px);box-shadow:0 6px 20px rgba(245,166,35,0.25);}
+.generate-btn:active{transform:translateY(0);}
+.generate-btn:disabled{background:var(--surface3);color:var(--muted);cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* RIGHT PANEL */
+.output-panel{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.output-header{padding:18px 28px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;}
+.output-label{font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--amber);margin-bottom:2px;}
+.output-title{font-family:'Syne',sans-serif;font-size:0.88rem;font-weight:700;color:var(--text);}
+.output-actions{display:flex;gap:7px;}
+.out-btn{padding:7px 14px;background:transparent;border:1px solid var(--border2);border-radius:7px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:0.62rem;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:5px;}
+.out-btn:hover{border-color:var(--amber-dim);color:var(--amber);}
+.out-btn.copied{border-color:var(--green);color:var(--green);}
+.out-btn svg{width:11px;height:11px;}
+
+.output-body{flex:1;overflow-y:auto;padding:28px;display:flex;flex-direction:column;gap:28px;}
+.output-body::-webkit-scrollbar{width:3px;}
+.output-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* Empty state */
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;gap:16px;opacity:0.5;}
+.empty-icon{font-size:2.5rem;opacity:0.4;}
+.empty-title{font-family:'Syne',sans-serif;font-size:0.88rem;font-weight:700;color:var(--muted);}
+.empty-sub{font-size:0.65rem;color:var(--muted2);line-height:1.6;max-width:300px;}
+
+/* Loading */
+.loading-state{display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:60px 0;}
+.loading-state.show{display:flex;}
+.loading-bars{display:flex;gap:5px;align-items:flex-end;height:36px;}
+.loading-bar{width:4px;border-radius:2px;background:var(--amber);animation:barrise 1s ease-in-out infinite;}
+.loading-bar:nth-child(1){animation-delay:0s;height:14px}
+.loading-bar:nth-child(2){animation-delay:0.1s;height:24px}
+.loading-bar:nth-child(3){animation-delay:0.2s;height:36px}
+.loading-bar:nth-child(4){animation-delay:0.3s;height:20px}
+.loading-bar:nth-child(5){animation-delay:0.4s;height:30px}
+@keyframes barrise{0%,100%{opacity:0.3;transform:scaleY(0.6)}50%{opacity:1;transform:scaleY(1)}}
+.loading-text{font-size:0.7rem;color:var(--muted);letter-spacing:0.1em;animation:blink 1.8s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* Story blocks */
+.story-block{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;animation:slideUp 0.35s ease both;}
+.story-block:nth-child(1){animation-delay:0.05s}
+.story-block:nth-child(2){animation-delay:0.12s}
+.story-block:nth-child(3){animation-delay:0.19s}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.story-block-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;}
+.story-number{display:flex;align-items:center;gap:10px;}
+.story-num-badge{width:22px;height:22px;border-radius:5px;background:var(--amber-glow);border:1px solid var(--amber-dim);display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:600;color:var(--amber);}
+.story-window-tag{font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
+.story-copy-btn{padding:5px 11px;background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:0.58rem;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:4px;}
+.story-copy-btn:hover{border-color:var(--amber-dim);color:var(--amber);}
+.story-copy-btn.copied{border-color:var(--green);color:var(--green);}
+
+.story-content{padding:18px 20px;}
+.section-tag{font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.section-tag::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+
+.headlines-list{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}
+.headline-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:7px;border:1px solid var(--border);font-size:0.78rem;line-height:1.45;color:var(--text);transition:all 0.15s;cursor:pointer;}
+.headline-item:hover{border-color:var(--border2);background:var(--surface3);}
+.headline-bullet{color:var(--amber);flex-shrink:0;font-size:0.8rem;padding-top:1px;}
+
+.script-divider{height:1px;background:var(--border);margin-bottom:16px;}
+.script-body{display:flex;flex-direction:column;}
+.script-para{font-size:0.82rem;line-height:1.9;color:var(--text);padding:10px 0;border-bottom:1px dashed var(--border);}
+.script-para:last-child{border-bottom:none;}
+
+.script-meta{display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap;}
+.meta-item{font-size:0.6rem;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.meta-item strong{color:var(--amber);font-weight:500;}
+.read-time-bar{flex:1;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;min-width:80px;}
+.read-time-fill{height:100%;background:var(--amber);border-radius:2px;transition:width 0.6s ease;}
+
+.error-block{background:rgba(224,82,82,0.08);border:1px solid rgba(224,82,82,0.2);border-radius:10px;padding:16px 20px;font-size:0.75rem;color:var(--red);line-height:1.6;}
+.error-block strong{font-weight:600;}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .rfm-main{grid-template-columns:1fr;height:auto;}
+  .input-panel{border-right:none;border-bottom:1px solid var(--border);}
+  .output-panel{min-height:60vh;}
+  .output-body,.panel-body{overflow-y:visible;}
+}
+@media(max-width:500px){
+  .rfm-header{padding:0 16px;}
+  .output-header{padding:14px 16px 12px;}
+  .output-body{padding:16px;}
+  .panel-body{padding:14px 16px;}
+}
+</style>
+</head>
+<body>
+
+<div class="rfm-header">
+  <div class="rfm-logo">
+    <div class="rfm-logo-badge">ROYAL FM 95.1</div>
+    <div>
+      <div class="rfm-logo-text">Script Writer</div>
+      <div class="rfm-logo-sub">AI Broadcast Tool · Ilorin</div>
+    </div>
+  </div>
+  <div class="rfm-header-right">
+    <div class="on-air-indicator">
+      <div class="on-air-dot" id="onAirDot"></div>
+      <span id="onAirLabel">STANDBY</span>
+    </div>
+    <div class="rfm-time" id="rfmClock">00:00:00</div>
+  </div>
+</div>
+
+<div class="rfm-main">
+
+  <!-- LEFT — INPUT -->
+  <div class="input-panel">
+    <div class="panel-header">
+      <div class="panel-label">Input</div>
+      <div class="panel-title">Raw Copy & Settings</div>
+    </div>
+    <div class="panel-body">
+
+      <!-- API Key -->
+      <div>
+        <div class="window-label">Gemini API Key</div>
+        <div class="api-row">
+          <span class="api-label">Key</span>
+          <input type="password" class="api-input" id="apiKey" placeholder="Paste your Gemini API key…"/>
+          <button class="api-toggle" onclick="toggleKey()" id="keyToggle">show</button>
+        </div>
+      </div>
+
+      <!-- Window -->
+      <div>
+        <div class="window-label">Broadcast Window</div>
+        <div class="window-pills">
+          <div class="window-pill active" data-window="morning" onclick="selectWindow('morning',this)">
+            Morning News<span class="pill-time">6AM – 9AM</span>
+          </div>
+          <div class="window-pill" data-window="midday" onclick="selectWindow('midday',this)">
+            Midday Bulletin<span class="pill-time">12PM – 1PM</span>
+          </div>
+          <div class="window-pill" data-window="evening" onclick="selectWindow('evening',this)">
+            Evening News<span class="pill-time">6PM – 8PM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Story count -->
+      <div>
+        <div class="count-row">
+          <div class="count-label">Stories in this paste</div>
+          <div class="count-pills">
+            <div class="count-pill active" onclick="selectCount(1,this)">1</div>
+            <div class="count-pill" onclick="selectCount(2,this)">2</div>
+            <div class="count-pill" onclick="selectCount(3,this)">3</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Raw copy -->
+      <div style="flex:1;display:flex;flex-direction:column;">
+        <div class="copy-label">
+          <span>Raw News Copy</span>
+          <button class="copy-clear" onclick="clearCopy()">clear</button>
+        </div>
+        <textarea class="raw-copy" id="rawCopy"
+          placeholder="Paste your raw news copy here…&#10;&#10;For multiple stories, separate each one with a blank line or ---"
+          oninput="updateCharCount()"></textarea>
+        <div class="char-count" id="charCount">0 characters</div>
+      </div>
+
+      <!-- Samples -->
+      <div>
+        <div class="sample-row">
+          <span class="sample-label">Load sample:</span>
+          <button class="sample-btn" onclick="loadSample('politics')">Politics</button>
+          <button class="sample-btn" onclick="loadSample('economy')">Economy</button>
+          <button class="sample-btn" onclick="loadSample('sports')">Sports</button>
+          <button class="sample-btn" onclick="loadSample('security')">Security</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="padding:16px 22px;border-top:1px solid var(--border);flex-shrink:0;">
+      <button class="generate-btn" id="generateBtn" onclick="generate()">
+        ▶ Generate Broadcast Script
+      </button>
+    </div>
+  </div>
+
+  <!-- RIGHT — OUTPUT -->
+  <div class="output-panel">
+    <div class="output-header">
+      <div>
+        <div class="output-label">Output</div>
+        <div class="output-title" id="outputTitle">Broadcast Script — Royal FM 95.1</div>
+      </div>
+      <div class="output-actions">
+        <button class="out-btn" id="copyAllBtn" onclick="copyAll()">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1"/></svg>
+          Copy All
+        </button>
+        <button class="out-btn" onclick="clearOutput()">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <div class="output-body" id="outputBody">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🎙</div>
+        <div class="empty-title">Ready for Copy</div>
+        <div class="empty-sub">Paste raw news on the left, choose your broadcast window, and hit Generate. Your script appears here, broadcast-ready.</div>
+      </div>
+      <div class="loading-state" id="loadingState">
+        <div class="loading-bars">
+          <div class="loading-bar"></div><div class="loading-bar"></div>
+          <div class="loading-bar"></div><div class="loading-bar"></div>
+          <div class="loading-bar"></div>
+        </div>
+        <div class="loading-text" id="loadingText">Writing script…</div>
+      </div>
+      <div id="scriptsContainer"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let selectedWindow = 'morning';
+let selectedCount  = 1;
+let allGeneratedText = '';
+
+const WINDOWS = {
+  morning: {
+    label: 'Morning News · 6AM',
+    tone: 'This is a MORNING news bulletin (6AM–9AM). Tone: crisp, alert, energising. Listeners are waking up and starting their day. Be direct and bright.',
+  },
+  midday: {
+    label: 'Midday Bulletin · 12PM',
+    tone: 'This is a MIDDAY bulletin (12PM–1PM). Tone: steady, informative, efficient. Listeners are on a lunch break. Update them cleanly and quickly.',
+  },
+  evening: {
+    label: 'Evening News · 6PM',
+    tone: 'This is an EVENING news bulletin (6PM–8PM). Tone: authoritative, composed, closing the day. Give listeners the full picture. End with significance or forward context.',
+  },
+};
+
+const SAMPLES = {
+  politics: `President Bola Tinubu has approved a new national minimum wage of 70,000 naira per month for federal workers, effective immediately. The announcement came after months of negotiations with labour unions including the NLC and TUC. The previous minimum wage was 30,000 naira, set in 2019. Labour leaders say while the figure falls short of their 494,000 naira demand, it represents a significant step forward. The government says it will work with state governments to ensure compliance across all sectors.`,
+  economy: `Nigeria's headline inflation rate has dropped to 28.9 percent in April 2026, according to new data from the National Bureau of Statistics. The NBS says food inflation moderated slightly driven by improved harvest seasons and increased domestic rice production. However, core inflation remains elevated at 26.1 percent with energy and transport costs still a major concern. The Central Bank of Nigeria says its monetary policy tightening measures are beginning to show results.`,
+  sports: `Super Eagles coach Eric Chelle has named a 25-man squad for Nigeria's 2026 World Cup warm-up matches against Morocco and Ghana next month. The squad includes returning forward Victor Osimhen, who missed the last two international windows due to injury. Chelle says the matches are critical preparation ahead of the tournament in the United States. Nigeria will face Argentina, Poland, and Senegal in the group stage. The Eagles open their campaign on June 14th.`,
+  security: `At least 12 civilians have been killed in fresh attacks attributed to bandits in Zamfara State, according to local government officials. The attacks occurred in three separate villages in the Anka local government area on Tuesday night. Governor Dauda Lawal has condemned the killings and called for immediate military reinforcement of the affected areas. The army says additional troops have been deployed and operations are ongoing.`,
+};
+
+const LOADING_MSGS = [
+  'Writing script…','Structuring paragraphs…',
+  'Checking broadcast style…','Formatting headlines…',
+  'Finalising output…','Polishing for air…',
+];
+
+// ════════════════════════════════════════
+// CLOCK
+// ════════════════════════════════════════
+function tick() {
+  const now = new Date();
+  document.getElementById('rfmClock').textContent =
+    now.toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const h = now.getHours();
+  const live = (h>=6&&h<9)||(h>=12&&h<13)||(h>=18&&h<20);
+  const dot = document.getElementById('onAirDot');
+  const lbl = document.getElementById('onAirLabel');
+  dot.classList.toggle('live', live);
+  lbl.textContent = live ? 'ON AIR' : 'STANDBY';
+  lbl.style.color = live ? 'var(--red)' : '';
+}
+tick(); setInterval(tick, 1000);
+
+// ════════════════════════════════════════
+// SELECTORS
+// ════════════════════════════════════════
+function selectWindow(w, btn) {
+  selectedWindow = w;
+  document.querySelectorAll('.window-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('outputTitle').textContent = `Broadcast Script — ${WINDOWS[w].label}`;
+}
+function selectCount(n, btn) {
+  selectedCount = n;
+  document.querySelectorAll('.count-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+}
+function updateCharCount() {
+  const n = document.getElementById('rawCopy').value.length;
+  document.getElementById('charCount').textContent = `${n.toLocaleString()} character${n!==1?'s':''}`;
+}
+function clearCopy() { document.getElementById('rawCopy').value=''; updateCharCount(); }
+function clearOutput() { document.getElementById('scriptsContainer').innerHTML=''; document.getElementById('emptyState').style.display=''; allGeneratedText=''; }
+function loadSample(t) { document.getElementById('rawCopy').value=SAMPLES[t]; updateCharCount(); }
+function toggleKey() {
+  const inp=document.getElementById('apiKey'), btn=document.getElementById('keyToggle');
+  inp.type = inp.type==='password'?'text':'password';
+  btn.textContent = inp.type==='password'?'show':'hide';
+}
+
+// ════════════════════════════════════════
+// PROMPT
+// ════════════════════════════════════════
+function buildPrompt(copy) {
+  return `## YOUR ROLE
+You are a senior international radio broadcast journalist working for Royal FM 95.1, Ilorin, Nigeria.
+Your only job is to turn raw news copy into international standard FM radio output.
+You do not ask questions. You do not explain your process. You do not add commentary.
+You receive raw copy. You produce the output. That is all.
+
+${WINDOWS[selectedWindow].tone}
+
+---
+
+## WRITING GOAL
+- Write for the ear, not for print.
+- Use ultra simple, clean, direct English at all times.
+- Sound professional, calm, and broadcast-ready.
+- Do not sound dramatic, academic, or overloaded.
+- Make it story-like and easy on the ear and mouth.
+
+---
+
+## HEADLINE RULES
+- Write exactly 3 headline options. No more, no less.
+- Each headline: short, clean, direct.
+- Pattern: [Name/Subject] + [verb] + [what happened].
+- Use real names of people, places, organisations, institutions.
+- Maximum 12 words per headline. Hard limit.
+- No clickbait. No questions. No vague teasers. No "Breaking".
+
+---
+
+## SCRIPT RULES
+- Always write exactly 4 short paragraphs. Never 3. Never 5. Always 4.
+- Each paragraph: 1 short, lean but detailed sentence.
+- Never let any paragraph feel crowded.
+- No fluff. No unnecessary background. No complicated vocabulary.
+- Use transition words where helpful: However / Meanwhile / Furthermore / Notably / Also
+- Final paragraph MUST close the story clearly with an ending tone.
+- Keep names, numbers, locations, dates, and consequences.
+- For disputed, political, security, legal, or controversial stories — use: says / claims / alleges / warns / insists / according to.
+- Do not invent facts. Do not add opinions.
+
+---
+
+## PARAGRAPH STRUCTURE
+1. Paragraph 1 — Introduce the main development immediately.
+2. Paragraph 2 — Add the key detail, number, reaction, or context.
+3. Paragraph 3 — Move forward with implication, response, or clarification.
+4. Paragraph 4 — End with outcome, next step, warning, reassurance, or closing significance.
+
+---
+
+## OUTPUT FORMAT — USE THIS EXACT LAYOUT
+
+HEADLINES
+• [headline 1]
+• [headline 2]
+• [headline 3]
+
+NEWS SCRIPT
+[paragraph 1]
+
+[paragraph 2]
+
+[paragraph 3]
+
+[paragraph 4]
+
+---
+
+## RAW COPY:
+${copy}
+
+Produce the output now. Nothing else.`;
+}
+
+// ════════════════════════════════════════
+// PARSE
+// ════════════════════════════════════════
+function parse(text) {
+  const headlines = [], paragraphs = [];
+  const hlMatch = text.match(/HEADLINES?\s*\n([\s\S]*?)(?:\n\s*\n|\nNEWS SCRIPT)/i);
+  if (hlMatch) {
+    hlMatch[1].split('\n').forEach(l => {
+      const c = l.replace(/^[•\-\*]\s*/,'').trim();
+      if (c.length > 4) headlines.push(c);
+    });
+  }
+  const scMatch = text.match(/NEWS SCRIPT\s*\n([\s\S]*)$/i);
+  if (scMatch) {
+    scMatch[1].split(/\n\s*\n/).map(p=>p.trim()).filter(p=>p.length>10).forEach(p=>paragraphs.push(p));
+  }
+  // Fallback
+  if (!headlines.length && !paragraphs.length) {
+    text.split(/\n\s*\n/).map(b=>b.trim()).filter(b=>b.length>10).forEach(b=>{
+      if (b.includes('•')) b.split('\n').forEach(l=>{ const c=l.replace(/^[•\-]\s*/,'').trim(); if(c.length>4) headlines.push(c); });
+      else if (!b.toLowerCase().includes('headlines')&&!b.toLowerCase().includes('news script')) paragraphs.push(b);
+    });
+  }
+  return { headlines, paragraphs };
+}
+
+// ════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════
+function wc(t){ return t.trim().split(/\s+/).filter(Boolean).length; }
+function rt(t){ return Math.round((wc(t)/160)*60); }
+
+function renderBlock(parsed, n, total) {
+  const {headlines, paragraphs} = parsed;
+  const id = `s-${Date.now()}-${n}`;
+  const script = paragraphs.join('\n\n');
+  const words = wc(script), secs = rt(script);
+  const rtPct = Math.min(100,(secs/60)*100);
+  const winLabel = WINDOWS[selectedWindow].label;
+
+  return `<div class="story-block" id="${id}">
+    <div class="story-block-header">
+      <div class="story-number">
+        <div class="story-num-badge">${n}</div>
+        <div class="story-window-tag">${winLabel}${total>1?` · Story ${n} of ${total}`:''}</div>
+      </div>
+      <button class="story-copy-btn" onclick="copyBlock('${id}')">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1"/></svg>
+        Copy Script
+      </button>
+    </div>
+    <div class="story-content">
+      <div class="section-tag">Headlines</div>
+      <div class="headlines-list">
+        ${headlines.map(h=>`<div class="headline-item" onclick="copyHL(this,'${h.replace(/'/g,"\\'")}')"
+          title="Click to copy"><span class="headline-bullet">•</span><span>${h}</span></div>`).join('')}
+      </div>
+      <div class="script-divider"></div>
+      <div class="section-tag">News Script</div>
+      <div class="script-body">
+        ${paragraphs.map(p=>`<div class="script-para">${p}</div>`).join('')}
+      </div>
+      <div class="script-meta">
+        <div class="meta-item"><strong>${words}</strong> words</div>
+        <div class="meta-item"><strong>~${secs}s</strong> on air</div>
+        <div class="read-time-bar"><div class="read-time-fill" style="width:${rtPct}%"></div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════
+// GENERATE
+// ════════════════════════════════════════
+async function generate() {
+  const key  = document.getElementById('apiKey').value.trim();
+  const copy = document.getElementById('rawCopy').value.trim();
+  if (!key)  { alert('Please enter your Gemini API key.'); return; }
+  if (!copy) { alert('Please paste raw news copy first.'); return; }
+
+  const btn = document.getElementById('generateBtn');
+  const empty = document.getElementById('emptyState');
+  const loading = document.getElementById('loadingState');
+  const container = document.getElementById('scriptsContainer');
+
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  empty.style.display = 'none';
+  loading.classList.add('show');
+  container.innerHTML = '';
+  allGeneratedText = '';
+
+  let mi = 0;
+  const mt = setInterval(() => {
+    document.getElementById('loadingText').textContent = LOADING_MSGS[mi++ % LOADING_MSGS.length];
+  }, 1400);
+
+  // Split stories
+  const stories = selectedCount === 1
+    ? [copy]
+    : copy.split(/\n{2,}|---+/).map(s=>s.trim()).filter(s=>s.length>30).slice(0, selectedCount);
+  const toProcess = stories.length ? stories : [copy];
+  const total = Math.min(selectedCount, toProcess.length);
+
+  let html = '';
+  try {
+    for (let i = 0; i < total; i++) {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+        {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            contents:[{parts:[{text: buildPrompt(toProcess[i]||copy)}]}],
+            generationConfig:{temperature:0.35, maxOutputTokens:900, topP:0.9}
+          })
+        }
+      );
+      if (!res.ok) { const e=await res.json(); throw new Error(e.error?.message||`API error ${res.status}`); }
+      const data = await res.json();
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!raw) throw new Error('Empty response from Gemini. Check your API key.');
+      const parsed = parse(raw);
+      html += renderBlock(parsed, i+1, total);
+      // Accumulate for copy-all
+      const hls = parsed.headlines.map(h=>`• ${h}`).join('\n');
+      const sc  = parsed.paragraphs.join('\n\n');
+      allGeneratedText += `STORY ${i+1} — ROYAL FM 95.1 — ${WINDOWS[selectedWindow].label}\n\nHEADLINES\n${hls}\n\nNEWS SCRIPT\n${sc}\n\n${'─'.repeat(48)}\n\n`;
+    }
+    container.innerHTML = html;
+  } catch(err) {
+    container.innerHTML = `<div class="error-block"><strong>Generation failed.</strong><br/>${err.message}<br/><br/>Check your API key and connection, then try again.</div>`;
+    allGeneratedText = '';
+  }
+
+  clearInterval(mt);
+  loading.classList.remove('show');
+  btn.disabled = false;
+  btn.textContent = '▶ Generate Broadcast Script';
+  if (container.innerHTML) container.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ════════════════════════════════════════
+// COPY
+// ════════════════════════════════════════
+function copyHL(el, text) {
+  navigator.clipboard.writeText(text).then(()=>{
+    el.style.background='rgba(82,194,122,0.12)';
+    el.style.borderColor='rgba(82,194,122,0.3)';
+    setTimeout(()=>{ el.style.background=''; el.style.borderColor=''; },1200);
+  });
+}
+
+function copyBlock(id) {
+  const b = document.getElementById(id); if(!b) return;
+  const hls = [...b.querySelectorAll('.headline-item span:last-child')].map(e=>'• '+e.textContent).join('\n');
+  const sc  = [...b.querySelectorAll('.script-para')].map(e=>e.textContent.trim()).join('\n\n');
+  const txt = `ROYAL FM 95.1 — ${WINDOWS[selectedWindow].label}\n\nHEADLINES\n${hls}\n\nNEWS SCRIPT\n${sc}`;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn=b.querySelector('.story-copy-btn');
+    btn.classList.add('copied');
+    btn.innerHTML=btn.innerHTML.replace('Copy Script','Copied!');
+    setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML=btn.innerHTML.replace('Copied!','Copy Script'); },1800);
+  });
+}
+
+function copyAll() {
+  if (!allGeneratedText) return;
+  navigator.clipboard.writeText(allGeneratedText).then(()=>{
+    const btn=document.getElementById('copyAllBtn');
+    btn.classList.add('copied');
+    btn.innerHTML=btn.innerHTML.replace('Copy All','Copied!');
+    setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML=btn.innerHTML.replace('Copied!','Copy All'); },1800);
+  });
+}
+
+updateCharCount();
+</script>
+</body>
+</html>
