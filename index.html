@@ -393,37 +393,82 @@ function toggleKey() {
 // PROMPT
 // ════════════════════════════════════════
 function buildPrompt(copy) {
-  const tone = WINDOWS[selectedWindow].tone;
-  return `Follow this EXACT format. Plain text only. No markdown. No bold. No asterisks.
+  return `## YOUR ROLE
+You are a senior international radio broadcast journalist working for Royal FM 95.1, Ilorin, Nigeria.
+Your only job is to turn raw news copy into international standard FM radio output.
+You do not ask questions. You do not explain your process. You do not add commentary.
+You receive raw copy. You produce the output. That is all.
 
-HEADLINES
-• headline one here maximum twelve words
-• headline two here maximum twelve words
-• headline three here maximum twelve words
-
-NEWS SCRIPT
-First paragraph sentence here.
-
-Second paragraph sentence here.
-
-Third paragraph sentence here.
-
-Fourth paragraph sentence here.
+${WINDOWS[selectedWindow].tone}
 
 ---
-INSTRUCTIONS:
-- Output ONLY the above format. Nothing before HEADLINES. Nothing after the fourth paragraph.
-- Exactly 3 bullet headlines. Exactly 4 paragraphs. Hard rules — never break them.
-- Each paragraph = exactly ONE sentence. Short. Clear. Radio-ready.
-- No markdown formatting of any kind.
-- Headlines: [Subject] + [verb] + [what happened]. Max 12 words. No questions. No clickbait.
-- Paragraphs flow: (1) main development (2) key detail or number (3) response or context with transition word However/Meanwhile/Furthermore (4) outcome or closing significance.
-- Simple English. Write for the ear not the eye.
-- Attribution for political/security/legal stories: says / claims / warns / according to.
-- Broadcast window context: ${tone}
 
-RAW COPY:
-${copy}`;
+## WRITING GOAL
+- Write for the ear, not for print.
+- Use ultra simple, clean, direct English at all times.
+- Sound professional, calm, and broadcast-ready.
+- Do not sound dramatic, academic, or overloaded.
+- Make the script feel storylike, natural, smooth, and easy on the ear and mouth.
+- Each paragraph should connect gently to the one before it, so the listener feels the story moving forward.
+- Prefer plain human phrasing over stiff report language.
+
+---
+
+## HEADLINE RULES
+- Write exactly 3 headline options. No more, no less.
+- Each headline: short, clean, direct.
+- Pattern: [Name/Subject] + [verb] + [what happened].
+- Use real names of people, places, organisations, institutions.
+- Maximum 12 words per headline. Hard limit.
+- No clickbait. No questions. No vague teasers. No "Breaking".
+
+---
+
+## SCRIPT RULES
+- Always write exactly 4 short paragraphs. Never 3. Never 5. Always 4.
+- Each paragraph: 1 short, lean but detailed sentence.
+- Never let any paragraph feel crowded.
+- No fluff. No unnecessary background. No complicated vocabulary.
+- Do not force transition words into every paragraph.
+- Use words like However, Meanwhile, Furthermore, Notably, or Also only when they naturally help the story flow.
+- Smooth flow matters more than formal transition words.
+- Final paragraph MUST close the story clearly with an ending tone.
+- Keep names, numbers, locations, dates, and consequences.
+- For disputed, political, security, legal, or controversial stories — use: says / claims / alleges / warns / insists / according to.
+- Do not invent facts. Do not add opinions.
+
+---
+
+## PARAGRAPH STRUCTURE
+1. Paragraph 1 — Introduce the main development immediately.
+2. Paragraph 2 — Build naturally from paragraph 1 with the key detail, number, reaction, or context.
+3. Paragraph 3 — Move the story forward with implication, response, or clarification.
+4. Paragraph 4 — Close smoothly with outcome, next step, warning, reassurance, or significance.
+
+---
+
+## OUTPUT FORMAT — USE THIS EXACT LAYOUT
+
+HEADLINES
+• [headline 1]
+• [headline 2]
+• [headline 3]
+
+NEWS SCRIPT
+[paragraph 1]
+
+[paragraph 2]
+
+[paragraph 3]
+
+[paragraph 4]
+
+---
+
+## RAW COPY:
+${copy}
+
+Produce the output now. Nothing else.`;
 }
 
 // ════════════════════════════════════════
@@ -431,52 +476,40 @@ ${copy}`;
 // ════════════════════════════════════════
 function parse(text) {
   const headlines = [], paragraphs = [];
-
-  // Strip markdown bold/italic formatting Gemini sometimes adds
   const clean = text
-    .replace(/\*\*([^*]+)\*\*/g, '$1')   // **bold**
-    .replace(/\*([^*]+)\*/g, '$1')          // *italic*
-    .replace(/#{1,3}\s*/g, '');              // ### headers
-
-  // Extract headlines — look for HEADLINES section
-  const hlMatch = clean.match(/HEADLINES?[:\s]*\n([\s\S]*?)(?=\n\s*\n[A-Z]|\nNEWS|$)/i);
+    .replace(/\r/g, '')
+    .replace(/\*\*/g, '')
+    .replace(/^\s*#{1,6}\s*/gm, '')
+    .replace(/[ \t]+$/gm, '')
+    .trim();
+  const heading = String.raw`(?:NEWS\s*SCRIPT|NEWSCRIPT|SCRIPT)`;
+  const hlMatch = clean.match(new RegExp(String.raw`HEADLINES?\s*:?\s*\n([\s\S]*?)(?=\n\s*(?:${heading})\s*:?\s*\n|$)`, 'i'));
   if (hlMatch) {
     hlMatch[1].split('\n').forEach(l => {
-      const c = l.replace(/^[•\-\*\d\.\)]+\s*/, '').trim();
-      if (c.length > 8 && !c.match(/^(HEADLINES?|NEWS SCRIPT)/i)) headlines.push(c);
+      const c = l.replace(/^\s*(?:[•\-\*]|\d+[.)])\s*/,'').trim();
+      if (c.length > 4) headlines.push(c);
     });
   }
-
-  // Extract script — look for NEWS SCRIPT section
-  const scMatch = clean.match(/NEWS SCRIPT[:\s]*\n([\s\S]*)$/i);
+  const scMatch = clean.match(new RegExp(String.raw`${heading}\s*:?\s*\n([\s\S]*)$`, 'i'));
   if (scMatch) {
-    const scriptBlock = scMatch[1];
-    // Split by double newlines OR by single newlines where each line is a full sentence
-    const blocks = scriptBlock.split(/\n\n+/).map(p => p.replace(/\n/g, ' ').trim()).filter(p => p.length > 15);
-    if (blocks.length >= 2) {
-      blocks.forEach(p => paragraphs.push(p));
-    } else {
-      // Try splitting by single newlines if double-newline split yields too few
-      scriptBlock.split('\n').map(p => p.trim()).filter(p => p.length > 15).forEach(p => paragraphs.push(p));
-    }
+    scMatch[1]
+      .replace(/\n-{3,}[\s\S]*$/,'')
+      .split(/\n\s*\n/)
+      .map(p=>p.replace(/^\s*(?:[•\-\*]|\d+[.)])\s*/gm,'').trim())
+      .filter(p=>p.length>10)
+      .forEach(p=>paragraphs.push(p));
   }
-
-  // Fallback — if still empty, try to intelligently split the whole response
-  if (!headlines.length || !paragraphs.length) {
-    const lines = clean.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-    let inScript = false;
-    lines.forEach(l => {
-      if (l.match(/^HEADLINES?/i)) return;
-      if (l.match(/^NEWS SCRIPT/i)) { inScript = true; return; }
-      if (!inScript && (l.startsWith('•') || l.startsWith('-') || l.startsWith('*'))) {
-        const c = l.replace(/^[•\-\*]\s*/, '').trim();
-        if (c.length > 8) headlines.push(c);
-      } else if (inScript && l.length > 20) {
-        paragraphs.push(l);
+  // Fallback
+  if (!paragraphs.length) {
+    clean.split(/\n\s*\n/).map(b=>b.trim()).filter(b=>b.length>10).forEach(b=>{
+      const lower = b.toLowerCase();
+      if (!headlines.length && /[•\-\*]|\d+[.)]/.test(b)) {
+        b.split('\n').forEach(l=>{ const c=l.replace(/^\s*(?:[•\-\*]|\d+[.)])\s*/,'').trim(); if(c.length>4) headlines.push(c); });
+      } else if (!lower.includes('headlines') && !lower.includes('news script') && !lower.includes('newscript')) {
+        paragraphs.push(b.replace(/^\s*(?:[•\-\*]|\d+[.)])\s*/gm,'').trim());
       }
     });
   }
-
   return { headlines, paragraphs };
 }
 
@@ -566,22 +599,25 @@ async function generate() {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
-            system_instruction: {
-              parts:[{ text: `You are a senior radio broadcast journalist. You ONLY output plain text in the EXACT format specified. No markdown. No bold. No asterisks. No extra commentary. Just the format.` }]
-            },
             contents:[{parts:[{text: buildPrompt(toProcess[i]||copy)}]}],
-            generationConfig:{temperature:0.1, maxOutputTokens:1000, topP:0.9}
+            generationConfig:{
+              temperature:0.35,
+              maxOutputTokens:2048,
+              topP:0.9,
+              thinkingConfig:{thinkingBudget:0}
+            }
           })
         }
       );
       if (!res.ok) { const e=await res.json(); throw new Error(e.error?.message||`API error ${res.status}`); }
       const data = await res.json();
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      console.log('=== RAW GEMINI RESPONSE ===');
-      console.log(raw);
-      console.log('=== END RAW RESPONSE ===');
       if (!raw) throw new Error('Empty response from Gemini. Check your API key.');
       const parsed = parse(raw);
+      if (!parsed.paragraphs.length) {
+        const reason = data.candidates?.[0]?.finishReason;
+        throw new Error(`Gemini returned headlines but no news script${reason ? ` (${reason})` : ''}. Try again, or shorten the raw copy.`);
+      }
       html += renderBlock(parsed, i+1, total);
       // Accumulate for copy-all
       const hls = parsed.headlines.map(h=>`• ${h}`).join('\n');
@@ -590,19 +626,7 @@ async function generate() {
     }
     container.innerHTML = html;
   } catch(err) {
-    const isCORS = err.message === 'Failed to fetch' || err.message.includes('NetworkError') || err.message.includes('CORS');
-    const msg = isCORS
-      ? `<strong>CORS block detected — browser security is preventing the API call.</strong><br/><br/>
-         This happens when the file is opened locally (file://) rather than from a live URL.<br/><br/>
-         <strong>Fix — fastest option:</strong><br/>
-         Rename this file to <code>index.html</code>, create a new Vercel project, and deploy it.
-         Once it's live at a real <code>https://</code> URL, the Gemini API call works perfectly.<br/><br/>
-         Your API key is fine. This is a browser restriction, not a tool error.`
-      : `<strong>Generation failed.</strong><br/>${err.message}<br/><br/>
-         ${err.message.includes('API_KEY') || err.message.includes('403')
-           ? 'API key may be invalid — check it at <strong>aistudio.google.com</strong>.'
-           : 'Check your API key and internet connection, then try again.'}`;
-    container.innerHTML = `<div class="error-block">${msg}</div>`;
+    container.innerHTML = `<div class="error-block"><strong>Generation failed.</strong><br/>${err.message}<br/><br/>Check your API key and connection, then try again.</div>`;
     allGeneratedText = '';
   }
 
